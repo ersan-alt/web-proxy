@@ -1,7 +1,5 @@
 from flask import Flask, request, Response
 import requests
-from bs4 import BeautifulSoup
-from urllib.parse import urljoin
 
 app = Flask(__name__)
 
@@ -47,6 +45,8 @@ def index():
                 timeLeft--;
                 countdownEl.textContent = timeLeft;
 
+                ...
+
                 if (timeLeft <= 0) {
                     clearInterval(timer);
                     statusBox.style.backgroundColor = "#d4edda";
@@ -78,27 +78,14 @@ def proxy():
     }
     
     try:
-        resp = requests.get(url, headers=headers, timeout=15)
-        content_type = resp.headers.get('Content-Type', '')
+        # İçeriği hiç kurcalamadan, doğrudan en hızlı şekilde iletiyoruz
+        resp = requests.get(url, headers=headers, timeout=10)
         
-        # Eğer gelen içerik bir web sayfası (HTML) ise, içindeki dosya yollarını proxy'ye uyumlu hale getiriyoruz
-        if 'text/html' in content_type:
-            soup = BeautifulSoup(resp.content, 'html.parser')
-            
-            # Sayfadaki linkleri, scriptleri, görselleri ve oyun motoru yollarını yakalayıp proxy'ye yönlendiriyoruz
-            tags = {'a': 'href', 'img': 'src', 'script': 'src', 'link': 'href', 'form': 'action', 'iframe': 'src'}
-            
-            for tag, attr in tags.items():
-                for element in soup.find_all(tag):
-                    val = element.get(attr)
-                    if val and not val.startswith('data:'):
-                        absolute_url = urljoin(url, val)
-                        element[attr] = f'/proxy?url={absolute_url}'
-                        
-            return Response(str(soup), resp.status_code, {'Content-Type': 'text/html'})
-        else:
-            # Resim, JavaScript veya stil dosyalarını doğrudan aktarıyoruz
-            return Response(resp.content, resp.status_code, resp.headers.items())
+        # Sıkıştırma veya transfer çakışmalarını önlemek için başlıkları filtreliyoruz
+        excluded_headers = ['content-encoding', 'content-length', 'transfer-encoding', 'connection']
+        headers_list = [(name, value) for name, value in resp.headers.items() if name.lower() not in excluded_headers]
+        
+        return Response(resp.content, resp.status_code, headers_list)
             
     except Exception as e:
         return f"Bağlantı hatası oluştu: {str(e)}", 500
