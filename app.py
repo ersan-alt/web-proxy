@@ -1,33 +1,84 @@
-import os
-from flask import Flask, request, Response
 import requests
+from flask import Flask, request, Response
 
 app = Flask(__name__)
 
 @app.route('/')
-def home():
+def index():
     return '''
-    <h2>MEB Erişim Geçidi</h2>
-    <form action="/proxy" method="get">
-        <input type="text" name="url" placeholder="https://example.com" style="width:300px; pading:8px;">
-        <button type="submit">Git</button>
-    </form>
+    <!DOCTYPE html>
+    <html lang="tr">
+    <head>
+        <meta charset="UTF-8">
+        <title>MEB Erişim Geçidi</title>
+        <style>
+            body { font-family: Arial, sans-serif; margin: 50px; background-color: #f4f4f9; color: #333; }
+            .container { background: #fff; padding: 30px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); max-width: 500px; }
+            input[type="text"] { width: 100%; padding: 10px; margin-top: 10px; margin-bottom: 15px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+            button { background-color: #007bff; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; }
+            button:hover { background-color: #0056b3; }
+            #status-box { margin-top: 20px; padding: 15px; border-radius: 4px; background-color: #fff3cd; color: #856404; border: 1px solid #ffeeba; }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h2>MEB Erişim Geçidi</h2>
+            
+            <div id="status-box">
+                ⏳ Sunucu uyandırılıyor... Lütfen <span id="countdown">60</span> saniye bekleyin.
+            </div>
+
+            <form id="proxy-form" action="/proxy" method="get" style="margin-top: 20px;">
+                <label for="url">Gitmek İstediğiniz Adres:</label>
+                <input type="text" id="url" name="url" placeholder="https://www.ornek.com" required>
+                <button type="submit" id="submit-btn" disabled style="opacity: 0.6; cursor: not-allowed;">Git</button>
+            </form>
+        </div>
+
+        <script>
+            let timeLeft = 60;
+            const countdownEl = document.getElementById('countdown');
+            const statusBox = document.getElementById('status-box');
+            const submitBtn = document.getElementById('submit-btn');
+
+            const timer = setInterval(() => {
+                timeLeft--;
+                countdownEl.textContent = timeLeft;
+
+                if (timeLeft <= 0) {
+                    clearInterval(timer);
+                    statusBox.style.backgroundColor = "#d4edda";
+                    statusBox.style.color = "#155724";
+                    statusBox.style.borderColor = "#c3e6cb";
+                    statusBox.innerHTML = "✅ Sunucu aktif! Artık dilediğiniz siteye girebilirsiniz.";
+                    submitBtn.disabled = false;
+                    submitBtn.style.opacity = "1";
+                    submitBtn.style.cursor = "pointer";
+                }
+            }, 1000);
+        </script>
+    </body>
+    </html>
     '''
 
 @app.route('/proxy')
 def proxy():
-    target_url = request.args.get('url')
-    if not target_url:
-        return "Lütfen bir URL girin.", 400
-    if not target_url.startswith('http'):
-        target_url = 'https://' + target_url
+    url = request.args.get('url')
+    if not url:
+        return "Lütfen bir URL belirtin.", 400
+    
+    if not url.startswith('http://') and not url.startswith('https://'):
+        url = 'https://' + url
+
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+    }
     
     try:
-        resp = requests.get(target_url)
-        return Response(resp.content, content_type=resp.headers.get('Content-Type', 'text/html'))
+        resp = requests.get(url, headers=headers, stream=True, timeout=10)
+        return Response(resp.content, resp.status_code, resp.headers.items())
     except Exception as e:
-        return f"Hata oluştu: {str(e)}", 500
+        return f"Bağlantı hatası oluştu: {str(e)}", 500
 
 if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 5000))
-    app.run(host='0.0.0.0', port=port)
+    app.run(host='0.0.0.0', port=5000)
