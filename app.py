@@ -45,8 +45,6 @@ def index():
                 timeLeft--;
                 countdownEl.textContent = timeLeft;
 
-                ...
-
                 if (timeLeft <= 0) {
                     clearInterval(timer);
                     statusBox.style.backgroundColor = "#d4edda";
